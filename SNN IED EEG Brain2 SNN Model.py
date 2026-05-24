@@ -15,6 +15,7 @@ from neo.core import SpikeTrain
 import quantities as pq
 from scipy import signal
 
+
 #-------------------------------------------------------------------
 
 
@@ -44,6 +45,10 @@ info = mne.create_info(
 #concatenate epoched data and saw as RAW file
 patient_number = 4
 time_to_start = 150
+#set seed
+seed_num = 874
+np.random.seed(seed_num)
+seed(seed_num)
 
 
 folder = Path('/Users/jihoon/Desktop/Capstone 2026/SNNTraining/Epileptic EEG/P'+str(patient_number))
@@ -123,6 +128,7 @@ def get_segment_of(channel):
     return events
 
 #-------------------------------------------------------------------
+
 
 
 
@@ -242,9 +248,8 @@ S_IE.w = 0.2
 
 spikemon_E = SpikeMonitor(E)
 spikemon_I = SpikeMonitor(I)
-
 #statemon_S = StateMonitor(S_EE, 'w', record=True)
-'''
+
 #visualize connection function
 def visualise_connectivity(S, threshold):
 
@@ -283,7 +288,6 @@ def visualise_connectivity(S, threshold):
 
     plt.tight_layout()
     plt.show()
-'''
 #-------------------------------------------------------------------
 
 
@@ -334,8 +338,8 @@ for channel, channel_index, inhi_channel_index in zip(ch_names,ch_index,ch_index
 
     positive_spike_time, negative_spike_time = get_spike_time(event_channel_tm_segment)
 
-    #print(len(positive_spike_time)/180)
-    #print(len(negative_spike_time)/180)
+    print(len(positive_spike_time)/180)
+    print(len(negative_spike_time)/180)
 
     input_groupE = SpikeGeneratorGroup(
         1,
@@ -368,16 +372,16 @@ for channel, channel_index, inhi_channel_index in zip(ch_names,ch_index,ch_index
 
 
 
-
 #visualize connection before running
 #visualise_connectivity(S_EE,0.7)
 
 #run simulation
-run((180)*second)
+run((150)*second)
 
 mean_w = np.mean(S_EE.w[:])
 
 print("no music mean_synaptic weight of ",patient_number," are \n", mean_w)
+print("seednum:", seed_num)
 
 #plot simulation
 '''

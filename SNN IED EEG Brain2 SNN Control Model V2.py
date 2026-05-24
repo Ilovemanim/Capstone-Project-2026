@@ -15,6 +15,7 @@ from neo.core import SpikeTrain
 import quantities as pq
 from scipy import signal
 
+
 #-------------------------------------------------------------------
 
 
@@ -42,8 +43,14 @@ info = mne.create_info(
 )
 
 #concatenate epoched data and saw as RAW file
-patient_number = 1
+patient_number = 4
 time_to_start = 150
+#set seed
+seed_num = 874
+np.random.seed(seed_num)
+seed(seed_num)
+
+
 folder = Path('/Users/jihoon/Desktop/Capstone 2026/SNNTraining/Epileptic EEG/P'+str(patient_number))
 folder_file = []
 
@@ -385,20 +392,20 @@ elif patient_number == 4:
     positive_spike_average = 20 * Hz #20
 
 #control input channel connection
-input_group_1 = PoissonGroup(1, rates='positive_spike_average*(t >= time_to_start*second)')
+input_group_1 = PoissonGroup(1, rates='positive_spike_average*(t >= 150*second)')
 input_1= Synapses(input_group_1, E, on_pre='v_post += 1.5')
 input_1.connect(i=0,j=0)
 
-input_group_2 = PoissonGroup(1, rates='positive_spike_average*(t >= time_to_start*second)')
+input_group_2 = PoissonGroup(1, rates='positive_spike_average*(t >= 150*second)')
 input_2= Synapses(input_group_2, E, on_pre='v_post += 1.5')
 input_2.connect(i=0,j=1)
 
 
-input_group_3 = PoissonGroup(1, rates='positive_spike_average*(t >= time_to_start*second)')
+input_group_3 = PoissonGroup(1, rates='positive_spike_average*(t >= 150*second)')
 input_3= Synapses(input_group_3, E, on_pre='v_post += 1.5')
 input_3.connect(i=0,j=8)
 
-input_group_4 = PoissonGroup(1, rates='positive_spike_average*(t >= time_to_start*second)')
+input_group_4 = PoissonGroup(1, rates='positive_spike_average*(t >= 150*second)')
 input_4= Synapses(input_group_4, E, on_pre='v_post += 1.5')
 input_4.connect(i=0,j=9)
 
@@ -436,14 +443,14 @@ plt.show()
 
 #30s before music
 mask_before = (
-    (spikemon_E.t >= 150*second) &
-    (spikemon_E.t < 180*second)
+    (spikemon_E.t >= 120*second) &
+    (spikemon_E.t < 150*second)
 )
 
 #30s wih music
 mask_after = (
-    (spikemon_E.t >= 180*second) &
-    (spikemon_E.t < 210*second)
+    (spikemon_E.t >= 150*second) &
+    (spikemon_E.t < 180*second)
 )
 
 distances = []
@@ -454,13 +461,13 @@ for neuron_id in range(N_E):
     before_times = (
         spikemon_E.t[mask_before][spikemon_E.i[mask_before] == neuron_id]
         / second
-    ) - 150
+    ) - 120
 
     # spike times during music
     after_times = (
         spikemon_E.t[mask_after][spikemon_E.i[mask_after] == neuron_id]
         / second
-    ) - 180
+    ) - 150
 
 
     if len(before_times) == 0 or len(after_times) == 0:
@@ -486,10 +493,14 @@ for neuron_id in range(N_E):
     distances.append(vr[0,1])
 
 # final result
-print(patient_number, "Music Mean VRD = ", np.mean(distances))
+print(patient_number, "control Mean VRD = ", np.mean(distances))
+
+mean_w = np.mean(S_EE.w[:])
+
+print("control applied mean_synaptic weight of ",patient_number," is ", mean_w)
 
 
-
+print('seed_num: ', seed_num)
 
 #synapse over time
 '''

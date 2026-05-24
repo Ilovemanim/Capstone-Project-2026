@@ -15,6 +15,9 @@ from neo.core import SpikeTrain
 import quantities as pq
 from scipy import signal
 
+
+
+
 #-------------------------------------------------------------------
 
 
@@ -42,8 +45,12 @@ info = mne.create_info(
 )
 
 #concatenate epoched data and saw as RAW file
-patient_number = 1
+patient_number = 4
 time_to_start = 150
+#set seed
+seed_num =874
+np.random.seed(seed_num)
+seed(seed_num)
 
 
 folder = Path('/Users/jihoon/Desktop/Capstone 2026/SNNTraining/Epileptic EEG/P'+str(patient_number))
@@ -634,6 +641,7 @@ mean_w = np.mean(S_EE.w[:])
 
 print("music applied mean_synaptic weight of ",patient_number," is ", mean_w)
 
+print('seed_num: ', seed_num)
 
 #synapse over time
 '''
