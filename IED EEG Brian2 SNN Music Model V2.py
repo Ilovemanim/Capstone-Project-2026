@@ -42,7 +42,7 @@ info = mne.create_info(
 )
 
 #concatenate epoched data and saw as RAW file
-patient_number = 4
+patient_number = 1
 time_to_start = 150
 
 
@@ -123,6 +123,7 @@ def get_segment_of(channel):
     return events
 
 #-------------------------------------------------------------------
+
 
 
 
@@ -283,10 +284,9 @@ def visualise_connectivity(S, threshold):
 
     plt.tight_layout()
     plt.show()
-'''
 #-------------------------------------------------------------------
 
-
+'''
 
 #visualise_connectivity(S_EE, 0)
 
@@ -369,18 +369,196 @@ for channel, channel_index, inhi_channel_index in zip(ch_names,ch_index,ch_index
 
 
 
-#visualize connection before running
-#visualise_connectivity(S_EE,0.7)
+
+
+
+#-------------------------------------------------------------------
+#Music Input On SNN Model
+#-------------------------------------------------------------------
+
+#basic setup
+sound = loadsound("/Users/jihoon/Desktop/Capstone 2026/SNNTraining/sonata-for-two-pianos-in-d-major-k448375a.wav")
+sound = sound[:30*second]
+sound = sound / np.max(np.abs(sound))
+
+
+target_fs = 10000 * Hz
+sound_10K = signal.resample_poly(sound, up=100, down=441)
+
+sound = Sound(sound_10K, samplerate=target_fs)
+
+
+#split left, right
+left_sound = sound[:, 0].reshape(-1, 1)
+right_sound = sound[:, 1].reshape(-1, 1)
+
+#cochlea setup
+cf = erbspace(100*Hz, 8000*Hz, 2) #setup with 3 channels
+
+#left ear setup
+left_gfb = Gammatone(left_sound, cf)
+
+left_ihc = FunctionFilterbank(
+    left_gfb,
+    lambda x: 3*np.clip(x, 0, np.inf)**(1.0/3.0)
+)
+
+#right ear setup
+right_gfb = Gammatone(right_sound, cf)
+
+right_ihc = FunctionFilterbank(
+    right_gfb,
+    lambda x: 3*np.clip(x, 0, np.inf)**(1.0/3.0)
+)
+
+
+left_output = left_ihc.process()
+right_output = right_ihc.process()
+
+
+if patient_number == 1:
+    percentile_value = 99.75 #25
+elif patient_number == 2:
+    percentile_value = 99.5 #50
+elif patient_number == 3:
+    percentile_value = 99.85 #15
+elif patient_number == 4:
+    percentile_value = 99.8 #20
+
+#calculate threshold
+left_ch0_threshold = np.percentile(left_output[:, 0],percentile_value)
+left_ch1_threshold = np.percentile(left_output[:, 1],percentile_value)
+
+right_ch0_threshold = np.percentile(right_output[:, 0],percentile_value)
+right_ch1_threshold = np.percentile(right_output[:, 1],percentile_value)
+
+
+#setup for left and right spike train
+fs = float(sound.samplerate)
+
+left_ch0_times = []
+left_ch1_times = []
+
+right_ch0_times = []
+right_ch1_times = []
+
+#left channel 0 and 1 
+left_ch0_samples = np.where(
+    left_output[:, 0] > left_ch0_threshold
+)[0]
+
+left_ch0_times = left_ch0_samples / fs + time_to_start
+
+left_ch1_samples = np.where(
+    left_output[:, 1] > left_ch1_threshold
+)[0]
+
+left_ch1_times = left_ch1_samples / fs + time_to_start
+
+
+#right channel 0 and 1
+right_ch0_samples = np.where(
+    right_output[:, 0] > right_ch0_threshold
+)[0]
+
+right_ch0_times = right_ch0_samples / fs + time_to_start
+
+right_ch1_samples = np.where(
+    right_output[:, 1] > right_ch1_threshold
+)[0]
+
+right_ch1_times = right_ch1_samples / fs + time_to_start
+
+
+#print(len(left_ch0_times)/30)
+#print(len(left_ch1_times)/30)
+#print(len(right_ch0_times)/30)
+#print(len(right_ch1_times)/30)
+
+
+
+
+
+#spike generator for left ear
+
+audio_left0 = SpikeGeneratorGroup(
+    1,
+    indices=np.zeros(len(left_ch0_times), dtype=int),
+    times=left_ch0_times * second
+)
+
+audio_left1 = SpikeGeneratorGroup(
+    1,
+    indices=np.zeros(len(left_ch1_times), dtype=int),
+    times=left_ch1_times * second
+)
+
+#spike generator for right ear
+
+audio_right0 = SpikeGeneratorGroup(
+    1,
+    indices=np.zeros(len(right_ch0_times), dtype=int),
+    times=right_ch0_times * second
+)
+
+audio_right1 = SpikeGeneratorGroup(
+    1,
+    indices=np.zeros(len(right_ch1_times), dtype=int),
+    times=right_ch1_times * second
+)
+
+
+#weight of audio
+weight_audio = 1.5
+
+
+#connect to temporal lobe left
+syn_left0 = Synapses(
+    audio_left0,
+    E,
+    on_pre='v_post += weight_audio'
+)
+
+syn_left0.connect(i=0, j=0)
+
+syn_left1 = Synapses(
+    audio_left1,
+    E,
+    on_pre='v_post += weight_audio'
+)
+
+syn_left1.connect(i=0, j=1)
+
+
+
+#connect to temporal lobe right
+syn_right0 = Synapses(
+    audio_right0,
+    E,
+    on_pre='v_post += weight_audio'
+)
+
+syn_right0.connect(i=0, j=8)
+
+syn_right1 = Synapses(
+    audio_right1,
+    E,
+    on_pre='v_post += weight_audio'
+)
+
+syn_right1.connect(i=0, j=9)
+
+
+
+#-------------------------------------------------------------------
+
+
 
 #run simulation
 run((180)*second)
 
-mean_w = np.mean(S_EE.w[:])
-
-print("no music mean_synaptic weight of ",patient_number," are \n", mean_w)
-
-#plot simulation
 '''
+#plot simulation
 plot(spikemon_E.t/ms, spikemon_E.i, '.k',ms=1)
 xlabel('Time (ms)')
 ylabel('Neuron index')
@@ -388,12 +566,77 @@ ylabel('Neuron index')
 plt.show()
 '''
 
-
 #visualize connection
-#visualise_connectivity(S_EE,0.7)
+#visualise_connectivity(S_EE,0)
 
-'''
+
+
+
+# -------------------------------------------------------------------
+# Van Rossum Distance
+# -------------------------------------------------------------------
+
+#30s before music
+mask_before = (
+    (spikemon_E.t >= 120*second) &
+    (spikemon_E.t < 150*second)
+)
+
+#30s wih music
+mask_after = (
+    (spikemon_E.t >= 150*second) &
+    (spikemon_E.t < 180*second)
+)
+
+distances = []
+
+for neuron_id in range(N_E):
+
+    # spike times before music
+    before_times = (
+        spikemon_E.t[mask_before][spikemon_E.i[mask_before] == neuron_id]
+        / second
+    ) - 120
+
+    # spike times during music
+    after_times = (
+        spikemon_E.t[mask_after][spikemon_E.i[mask_after] == neuron_id]
+        / second
+    ) - 150
+
+
+    if len(before_times) == 0 or len(after_times) == 0:
+        continue
+
+    # spike train
+    st_before = SpikeTrain(
+        before_times * pq.s,
+        t_stop = 30 * pq.s
+    )
+
+    st_after = SpikeTrain(
+        after_times * pq.s,
+        t_stop = 30 * pq.s
+    )
+
+    # compute distance
+    vr = van_rossum_distance(
+        [st_before, st_after],
+        time_constant = 100 * pq.ms
+    )
+
+    distances.append(vr[0,1])
+
+# final result
+print(patient_number, "Music Mean VRD = ", np.mean(distances))
+
+mean_w = np.mean(S_EE.w[:])
+
+print("music applied mean_synaptic weight of ",patient_number," is ", mean_w)
+
+
 #synapse over time
+'''
 avg_w = np.mean(statemon_S.w, axis=0)
 
 plot(statemon_S.t/ms, avg_w)
